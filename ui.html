@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  :root{ --primary:#E52C65; --ink:#18161F; --muted:#5C5771; --line:#E5E3ED; --bg:#FAFAFC; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:-apple-system,'Segoe UI',sans-serif; font-size:12.5px; color:var(--ink); background:var(--bg); }
+  .tabs{ display:flex; overflow-x:auto; border-bottom:1px solid var(--line); background:white; position:sticky; top:0; z-index:2; }
+  .tab{ padding:10px 12px; font-size:11.5px; font-weight:600; color:var(--muted); cursor:pointer; white-space:nowrap; border-bottom:2px solid transparent; }
+  .tab.active{ color:var(--ink); border-bottom-color:var(--primary); }
+  .panel{ padding:16px; }
+  label.field{ display:block; margin-bottom:12px; }
+  .field-label{ font-size:10.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.03em; margin-bottom:5px; }
+  input[type=text], input[type=number], select{ width:100%; padding:7px 9px; border-radius:7px; border:1.5px solid var(--line); font-size:12px; font-family:inherit; background:white; }
+  input[type=color]{ width:36px; height:30px; border:1.5px solid var(--line); border-radius:6px; padding:0; }
+  .row{ display:flex; gap:10px; align-items:flex-end; }
+  .row > div{ flex:1; }
+  button.primary{ background:var(--primary); color:white; border:none; padding:9px 16px; border-radius:8px; font-weight:700; font-size:12px; cursor:pointer; margin-top:6px; }
+  .status{ font-size:11px; color:var(--muted); margin-top:8px; min-height:14px; }
+  .status.ok{ color:#16A34A; } .status.err{ color:#DC2626; }
+  .swatch-row{ display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-bottom:14px; }
+  .swatch{ height:44px; border-radius:6px; display:flex; align-items:flex-end; padding:4px; font-size:9px; font-weight:700; color:white; cursor:pointer; }
+  .section-label{ font-size:10px; color:var(--muted); text-transform:uppercase; margin:14px 0 6px; font-weight:700; }
+  .type-row{ border-bottom:1px solid var(--line); padding:9px 0; cursor:pointer; }
+  .type-row-top{ display:flex; justify-content:space-between; align-items:baseline; }
+  .override-box{ background:var(--bg); border-radius:7px; padding:10px; margin-top:8px; display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .comp-card{ border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:10px; background:white; }
+  .comp-card-head{ display:flex; align-items:center; gap:8px; font-weight:700; font-size:12.5px; margin-bottom:6px; }
+  .checkbox-row{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+</style>
+</head>
+<body>
+
+<div class="tabs" id="tabs"></div>
+<div id="panels"></div>
+
+<script>
+/* ============== helpers (color / scale math) ============== */
+function hexToRgb(hex){
+  const h = hex.replace('#','');
+  const full = h.length===3 ? h.split('').map(c=>c+c).join('') : h;
+  const num = parseInt(full,16);
+  return { r:(num>>16)&255, g:(num>>8)&255, b:num&255 };
+}
+function rgbToHex(r,g,b){
+  return '#'+[r,g,b].map(v=>Math.round(Math.max(0,Math.min(255,v))).toString(16).padStart(2,'0')).join('').toUpperCase();
+}
+function mix(hex,target,factor){
+  const a=hexToRgb(hex), b=hexToRgb(target);
+  return rgbToHex(a.r+(b.r-a.r)*factor, a.g+(b.g-a.g)*factor, a.b+(b.b-a.b)*factor);
+}
+function buildScale(base){
+  const steps=[50,100,200,300,400,500,600,700,800,900];
+  const tint={50:0.95,100:0.88,200:0.74,300:0.58,400:0.32,500:0.14};
+  const shade={700:0.15,800:0.34,900:0.52};
+  const out={};
+  steps.forEach(s=>{
+    if(s===600) out[s]=base;
+    else if(tint[s]!==undefined) out[s]=mix(base,'#FFFFFF',tint[s]);
+    else out[s]=mix(base,'#000000',shade[s]);
+  });
+  return out;
+}
+function autoGrey(primaryHex){
+  const {r,g,b}=hexToRgb(primaryHex);
+  const grey=(r+g+b)/3, blend=0.08;
+  return rgbToHex(grey*(1-blend)+r*blend, grey*(1-blend)+g*blend, grey*(1-blend)+b*blend);
+}
+const RATIOS = { 'minor-second':1.067,'major-second':1.125,'minor-third':1.2,'major-third':1.25,'perfect-fourth':1.333,'golden':1.618 };
+const ROLES = ['caption','body','body-lg','h3','h2','h1','display'];
+const ROLE_INDEX = { caption:-1, body:0, 'body-lg':1, h3:2, h2:3, h1:4, display:5 };
+
+/* ============== state ============== */
+let state = {
+  color: { primary:'#E52C65', useSecondary:true, secondary:'#7524B7', useCustomGrey:false, grey500:'#7D7796' },
+  typography: { font:'Satoshi', scaleType:'major-third', customRatio:1.25, bodySize:16, overrides:{} },
+  spacing: { base:8, customBase:8, scaleType:'linear', ratio:1.5, steps:8 },
+  radius: { min:4, max:24, steps:4, scaleType:'linear' },
+  shadow: { enabled:true, steps:3, intensity:0.12, tint:'neutral' },
+  components: {
+    button:{ include:true, variants:'Primary, Secondary, Outline, Ghost, Destructive' },
+    input:{ include:true },
+    toggle:{ include:true },
+    checkbox:{ include:true },
+    radio:{ include:true },
+    tabs:{ include:true },
+    badge:{ include:true, variants:'Primary, Secondary, Success, Warning, Error, Neutral' },
+  }
+};
+let expandedRole = null;
+let currentTab = 'Color';
+
+function computeTokens(){
+  const primaryScale = buildScale(state.color.primary);
+  const secondaryScale = state.color.useSecondary ? buildScale(state.color.secondary) : null;
+  const greyBase = state.color.useCustomGrey ? state.color.grey500 : autoGrey(state.color.primary);
+  const greyScale = buildScale(greyBase);
+
+  const ratio = state.typography.scaleType==='custom' ? state.typography.customRatio : RATIOS[state.typography.scaleType];
+  const typeScale = {};
+  ROLES.forEach(role=>{
+    const size = Math.round(state.typography.bodySize * Math.pow(ratio, ROLE_INDEX[role]));
+    const ov = state.typography.overrides[role] || {};
+    typeScale[role] = {
+      size,
+      weight: ov.weight !== undefined ? ov.weight : (ROLE_INDEX[role]>=3?700:ROLE_INDEX[role]>=5?900:400),
+      letterSpacing: ov.letterSpacing !== undefined ? ov.letterSpacing : (ROLE_INDEX[role]>=2?-0.02:0),
+      lineHeight: ov.lineHeight !== undefined ? ov.lineHeight : (ROLE_INDEX[role]>=2?1.15:1.5),
+      font: ov.font || state.typography.font,
+    };
+  });
+
+  const base = state.spacing.base==='custom' ? state.spacing.customBase : state.spacing.base;
+  const spacingScale=[];
+  for(let i=1;i<=state.spacing.steps;i++){
+    spacingScale.push(state.spacing.scaleType==='linear' ? base*i : Math.round(base*Math.pow(state.spacing.ratio,i-1)));
+  }
+
+  const radiusScale=[];
+  for(let i=0;i<state.radius.steps;i++){
+    const t = state.radius.steps===1 ? 0 : i/(state.radius.steps-1);
+    const v = state.radius.scaleType==='linear'
+      ? state.radius.min + (state.radius.max-state.radius.min)*t
+      : state.radius.min * Math.pow(state.radius.max/state.radius.min, t);
+    radiusScale.push(Math.round(v));
+  }
+
+  let shadowScale=[];
+  if(state.shadow.enabled){
+    const tintColor = state.shadow.tint==='primary' ? state.color.primary : '#18161F';
+    const rgb = hexToRgb(tintColor);
+    for(let i=1;i<=state.shadow.steps;i++){
+      const blur=6*i*i, y=2*i*i, alpha=(state.shadow.intensity/i*1.4);
+      shadowScale.push(`0 ${y}px ${blur}px rgba(${rgb.r},${rgb.g},${rgb.b},${alpha.toFixed(2)})`);
+    }
+  }
+
+  return {
+    color:{ primary:primaryScale, secondary:secondaryScale, grey:greyScale },
+    typography:{ font:state.typography.font, scale:typeScale },
+    spacing:spacingScale, radius:radiusScale, shadow:shadowScale,
+    components: state.components,
+  };
+}
+
+/* ============== tabs scaffold ============== */
+const TABS = ['Color','Typography','Spacing','Radius','Shadow','Components'];
+const tabsEl = document.getElementById('tabs');
+const panelsEl = document.getElementById('panels');
+TABS.forEach(t=>{
+  const tab=document.createElement('div');
+  tab.className='tab'+(t===currentTab?' active':'');
+  tab.textContent=t; tab.dataset.tab=t;
+  tab.onclick=()=>{ currentTab=t; renderTabs(); renderCurrentTab(); };
+  tabsEl.appendChild(tab);
+});
+function renderTabs(){
+  document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active', el.dataset.tab===currentTab));
+}
+
+function publish(type){
+  const tokens = computeTokens();
+  parent.postMessage({ pluginMessage: { type, tokens } }, '*');
+  setStatus(currentTab, 'Publishing…');
+}
+function setStatus(tabName, text, kind){
+  const el = document.getElementById('status-'+tabName);
+  if(!el) return;
+  el.textContent=text; el.className='status'+(kind?' '+kind:'');
+}
+
+/* ============== renderers ============== */
+function renderCurrentTab(){
+  const t = computeTokens();
+  if(currentTab==='Color') panelsEl.innerHTML = colorPanel(t);
+  if(currentTab==='Typography') panelsEl.innerHTML = typographyPanel(t);
+  if(currentTab==='Spacing') panelsEl.innerHTML = spacingPanel(t);
+  if(currentTab==='Radius') panelsEl.innerHTML = radiusPanel(t);
+  if(currentTab==='Shadow') panelsEl.innerHTML = shadowPanel(t);
+  if(currentTab==='Components') panelsEl.innerHTML = componentsPanel(t);
+}
+
+function colorPanel(t){
+  const scaleHtml=(label,scale)=>`
+    <div class="section-label">${label}</div>
+    <div class="swatch-row">${Object.entries(scale).map(([step,hex])=>`<div class="swatch" style="background:${hex}" onclick="navigator.clipboard.writeText('${hex}')">${step}</div>`).join('')}</div>`;
+  return `
+    <div class="panel">
+      <div class="row">
+        <div><label class="field"><span class="field-label">Primary</span><input type="color" value="${state.color.primary}" oninput="state.color.primary=this.value; renderCurrentTab()"></label></div>
+        <div><label class="field"><span class="field-label">&nbsp;</span><input type="text" value="${state.color.primary}" oninput="state.color.primary=this.value; renderCurrentTab()"></label></div>
+      </div>
+      <div class="checkbox-row"><input type="checkbox" ${state.color.useSecondary?'checked':''} onchange="state.color.useSecondary=this.checked; renderCurrentTab()"> <span class="field-label" style="margin:0;">Secondary (optional)</span></div>
+      ${state.color.useSecondary ? `<div class="row">
+        <div><input type="color" value="${state.color.secondary}" oninput="state.color.secondary=this.value; renderCurrentTab()"></div>
+        <div><input type="text" value="${state.color.secondary}" oninput="state.color.secondary=this.value; renderCurrentTab()"></div>
+      </div>` : ''}
+      <div class="checkbox-row" style="margin-top:10px;"><input type="checkbox" ${state.color.useCustomGrey?'checked':''} onchange="state.color.useCustomGrey=this.checked; renderCurrentTab()"> <span class="field-label" style="margin:0;">Custom grey-500 (optional)</span></div>
+      ${state.color.useCustomGrey ? `<div class="row">
+        <div><input type="color" value="${state.color.grey500}" oninput="state.color.grey500=this.value; renderCurrentTab()"></div>
+        <div><input type="text" value="${state.color.grey500}" oninput="state.color.grey500=this.value; renderCurrentTab()"></div>
+      </div>` : `<div style="font-size:10.5px; color:var(--muted); margin-bottom:10px;">auto-derived: ${autoGrey(state.color.primary)}</div>`}
+
+      ${scaleHtml('Primary scale', t.color.primary)}
+      ${t.color.secondary ? scaleHtml('Secondary scale', t.color.secondary) : ''}
+      ${scaleHtml('Grey scale', t.color.grey)}
+
+      <button class="primary" onclick="publish('publish-colors')">Publish color styles</button>
+      <div class="status" id="status-Color"></div>
+    </div>`;
+}
+
+function typographyPanel(t){
+  const rows = ROLES.slice().reverse().map(role=>{
+    const s = t.typography.scale[role];
+    const open = expandedRole===role;
+    return `
+      <div class="type-row">
+        <div class="type-row-top" onclick="expandedRole = expandedRole==='${role}' ? null : '${role}'; renderCurrentTab()">
+          <span style="font-size:${Math.min(s.size,22)}px; font-weight:${s.weight};">${role}</span>
+          <span style="font-size:9.5px; color:var(--muted); font-family:monospace;">${s.size}px / ${s.weight}</span>
+        </div>
+        ${open ? `
+        <div class="override-box">
+          <label class="field"><span class="field-label">Weight</span><input type="number" step="100" value="${s.weight}" oninput="setOverride('${role}','weight',parseInt(this.value))"></label>
+          <label class="field"><span class="field-label">Letter spacing</span><input type="number" step="0.005" value="${s.letterSpacing}" oninput="setOverride('${role}','letterSpacing',parseFloat(this.value))"></label>
+          <label class="field"><span class="field-label">Line height</span><input type="number" step="0.05" value="${s.lineHeight}" oninput="setOverride('${role}','lineHeight',parseFloat(this.value))"></label>
+          <label class="field"><span class="field-label">Font</span><input type="text" value="${s.font}" oninput="setOverride('${role}','font',this.value)"></label>
+        </div>` : ''}
+      </div>`;
+  }).join('');
+  return `
+    <div class="panel">
+      <label class="field"><span class="field-label">Typeface</span><input type="text" value="${state.typography.font}" oninput="state.typography.font=this.value; renderCurrentTab()"></label>
+      <div class="row">
+        <div><label class="field"><span class="field-label">Scale</span>
+          <select onchange="state.typography.scaleType=this.value; renderCurrentTab()">
+            ${['minor-second','major-second','minor-third','major-third','perfect-fourth','golden','custom'].map(v=>`<option value="${v}" ${state.typography.scaleType===v?'selected':''}>${v}</option>`).join('')}
+          </select>
+        </label></div>
+        <div><label class="field"><span class="field-label">Body size (px)</span><input type="number" value="${state.typography.bodySize}" oninput="state.typography.bodySize=parseInt(this.value)||16; renderCurrentTab()"></label></div>
+      </div>
+      ${state.typography.scaleType==='custom' ? `<label class="field"><span class="field-label">Custom ratio</span><input type="number" step="0.01" value="${state.typography.customRatio}" oninput="state.typography.customRatio=parseFloat(this.value); renderCurrentTab()"></label>` : ''}
+      <div class="section-label">Scale preview — click a row to override</div>
+      ${rows}
+      <button class="primary" onclick="publish('publish-typography')">Publish text styles</button>
+      <div class="status" id="status-Typography"></div>
+    </div>`;
+}
+function setOverride(role, key, value){
+  state.typography.overrides[role] = Object.assign({}, state.typography.overrides[role]||{}, { [key]: value });
+  renderCurrentTab();
+}
+
+function spacingPanel(t){
+  const rows = t.spacing.map((v,i)=>`
+    <div class="row" style="align-items:center; margin-bottom:6px;">
+      <span style="width:44px; font-size:10px; font-family:monospace;">sp-${i+1}</span>
+      <div style="height:10px; background:${t.color.primary['600']}; width:${v}px; border-radius:3px;"></div>
+      <span style="font-size:10px; color:var(--muted); width:40px;">${v}px</span>
+    </div>`).join('');
+  return `
+    <div class="panel">
+      <div class="row">
+        <div><label class="field"><span class="field-label">Base unit</span>
+          <select onchange="state.spacing.base=this.value==='custom'?'custom':parseInt(this.value); renderCurrentTab()">
+            <option value="4" ${state.spacing.base===4?'selected':''}>4px</option>
+            <option value="8" ${state.spacing.base===8?'selected':''}>8px</option>
+            <option value="custom" ${state.spacing.base==='custom'?'selected':''}>Custom</option>
+          </select>
+        </label></div>
+        <div><label class="field"><span class="field-label">Scale type</span>
+          <select onchange="state.spacing.scaleType=this.value; renderCurrentTab()">
+            <option value="linear" ${state.spacing.scaleType==='linear'?'selected':''}>Linear</option>
+            <option value="geometric" ${state.spacing.scaleType==='geometric'?'selected':''}>Geometric</option>
+          </select>
+        </label></div>
+        <div><label class="field"><span class="field-label">Steps</span><input type="number" value="${state.spacing.steps}" oninput="state.spacing.steps=parseInt(this.value)||1; renderCurrentTab()"></label></div>
+      </div>
+      ${state.spacing.base==='custom' ? `<label class="field"><span class="field-label">Custom base (px)</span><input type="number" value="${state.spacing.customBase}" oninput="state.spacing.customBase=parseInt(this.value)||1; renderCurrentTab()"></label>` : ''}
+      ${state.spacing.scaleType==='geometric' ? `<label class="field"><span class="field-label">Ratio</span><input type="number" step="0.1" value="${state.spacing.ratio}" oninput="state.spacing.ratio=parseFloat(this.value); renderCurrentTab()"></label>` : ''}
+      <div class="section-label">Preview</div>
+      ${rows}
+      <button class="primary" onclick="publish('publish-spacing')">Publish spacing variables</button>
+      <div class="status" id="status-Spacing"></div>
+    </div>`;
+}
+
+function radiusPanel(t){
+  const boxes = t.radius.map((r,i)=>`
+    <div style="display:inline-block; text-align:center; margin:0 12px 12px 0;">
+      <div style="width:44px; height:44px; background:white; border:1.5px solid var(--line); border-radius:${r}px;"></div>
+      <div style="font-size:9px; color:var(--muted); margin-top:4px;">r-${i+1} · ${r}px</div>
+    </div>`).join('');
+  return `
+    <div class="panel">
+      <div class="row">
+        <div><label class="field"><span class="field-label">Min (px)</span><input type="number" value="${state.radius.min}" oninput="state.radius.min=parseInt(this.value)||0; renderCurrentTab()"></label></div>
+        <div><label class="field"><span class="field-label">Max (px)</span><input type="number" value="${state.radius.max}" oninput="state.radius.max=parseInt(this.value)||0; renderCurrentTab()"></label></div>
+      </div>
+      <div class="row">
+        <div><label class="field"><span class="field-label">Steps</span><input type="number" value="${state.radius.steps}" oninput="state.radius.steps=parseInt(this.value)||1; renderCurrentTab()"></label></div>
+        <div><label class="field"><span class="field-label">Scale</span>
+          <select onchange="state.radius.scaleType=this.value; renderCurrentTab()">
+            <option value="linear" ${state.radius.scaleType==='linear'?'selected':''}>Linear</option>
+            <option value="geometric" ${state.radius.scaleType==='geometric'?'selected':''}>Geometric</option>
+          </select>
+        </label></div>
+      </div>
+      <div class="section-label">Preview</div>
+      <div>${boxes}</div>
+      <button class="primary" onclick="publish('publish-radius')">Publish radius variables</button>
+      <div class="status" id="status-Radius"></div>
+    </div>`;
+}
+
+function shadowPanel(t){
+  const boxes = t.shadow.map((s,i)=>`
+    <div style="display:inline-block; text-align:center; margin:0 16px 16px 0;">
+      <div style="width:48px; height:48px; background:white; border-radius:10px; box-shadow:${s};"></div>
+      <div style="font-size:9px; color:var(--muted); margin-top:8px;">shadow-${i+1}</div>
+    </div>`).join('');
+  return `
+    <div class="panel">
+      <div class="checkbox-row"><input type="checkbox" ${state.shadow.enabled?'checked':''} onchange="state.shadow.enabled=this.checked; renderCurrentTab()"> <span class="field-label" style="margin:0;">Enable shadows</span></div>
+      ${state.shadow.enabled ? `
+        <div class="row">
+          <div><label class="field"><span class="field-label">Steps</span><input type="number" value="${state.shadow.steps}" oninput="state.shadow.steps=parseInt(this.value)||1; renderCurrentTab()"></label></div>
+          <div><label class="field"><span class="field-label">Intensity</span><input type="number" step="0.02" value="${state.shadow.intensity}" oninput="state.shadow.intensity=parseFloat(this.value); renderCurrentTab()"></label></div>
+          <div><label class="field"><span class="field-label">Tint</span>
+            <select onchange="state.shadow.tint=this.value; renderCurrentTab()">
+              <option value="neutral" ${state.shadow.tint==='neutral'?'selected':''}>Neutral</option>
+              <option value="primary" ${state.shadow.tint==='primary'?'selected':''}>Primary-tinted</option>
+            </select>
+          </label></div>
+        </div>
+        <div class="section-label">Preview</div>
+        <div>${boxes}</div>
+        <button class="primary" onclick="publish('publish-shadow')">Publish effect styles</button>
+        <div class="status" id="status-Shadow"></div>
+      ` : `<div style="font-size:11px; color:var(--muted);">Shadows off — nothing will be published for this tab.</div>`}
+    </div>`;
+}
+
+function componentsPanel(t){
+  const card=(key,label,extra)=>`
+    <div class="comp-card">
+      <div class="comp-card-head"><input type="checkbox" ${state.components[key].include?'checked':''} onchange="state.components['${key}'].include=this.checked; renderCurrentTab()"> ${label}</div>
+      ${extra||''}
+    </div>`;
+  return `
+    <div class="panel">
+      <div style="font-size:11px; color:var(--muted); margin-bottom:12px;">Every included component publishes with its full state set (hover/focus/disabled/error where applicable).</div>
+      ${card('button','Buttons', `<input type="text" value="${state.components.button.variants}" oninput="state.components.button.variants=this.value; renderCurrentTab()">`)}
+      ${card('input','Input fields')}
+      ${card('toggle','Toggles')}
+      ${card('checkbox','Checkboxes')}
+      ${card('radio','Radios')}
+      ${card('tabs','Tabs')}
+      ${card('badge','Badges', `<input type="text" value="${state.components.badge.variants}" oninput="state.components.badge.variants=this.value; renderCurrentTab()">`)}
+      <button class="primary" onclick="publish('publish-components')">Publish components to canvas</button>
+      <div class="status" id="status-Components"></div>
+    </div>`;
+}
+
+renderCurrentTab();
+
+/* ============== messages from plugin main thread ============== */
+onmessage = (event) => {
+  const msg = event.data.pluginMessage;
+  if(!msg) return;
+  if(msg.type==='publish-done'){
+    const tabName = msg.tab.charAt(0).toUpperCase()+msg.tab.slice(1);
+    setStatus(tabName, 'Published to Figma ✓', 'ok');
+  } else if(msg.type==='error'){
+    setStatus(currentTab, 'Error: '+msg.message, 'err');
+  }
+};
+</script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-# Design System Sync — Figma Plugin
+# Tokenly — Figma Plugin
 
 Fully standalone — all inputs live in the plugin now. No separate website step required.
 
@@ -6,7 +6,7 @@ Fully standalone — all inputs live in the plugin now. No separate website step
 1. Open Figma desktop app.
 2. Go to **Menu → Plugins → Development → Import plugin from manifest…**
 3. Select `manifest.json` from this folder.
-4. The plugin now appears under **Plugins → Development → Design System Sync**.
+4. The plugin now appears under **Plugins → Development → Tokenly**.
 
 ## Use
 1. Run the plugin. It opens on the **Color** tab.

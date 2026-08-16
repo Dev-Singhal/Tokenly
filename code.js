@@ -53,6 +53,9 @@ function publishColors() {
   if (!tokens) return;
   const groups = [["Primary", tokens.color.primary], ["Grey", tokens.color.grey]];
   if (tokens.color.secondary) groups.push(["Secondary", tokens.color.secondary]);
+  if (tokens.color.extras) {
+    tokens.color.extras.forEach(e => groups.push([e.name || "Color", e.scale]));
+  }
   for (const [groupName, scale] of groups) {
     for (const [step, hex] of Object.entries(scale)) {
       const name = `${groupName}/${step}`;

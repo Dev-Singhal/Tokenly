@@ -53,9 +53,13 @@
   .comp-card{ border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:10px; background:var(--surface); }
   .comp-card-head{ display:flex; align-items:center; gap:8px; font-weight:600; font-size:12.5px; margin-bottom:6px; }
   .checkbox-row{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
-  .plugin-header{ display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid var(--line); background:var(--surface); }
+  .plugin-header{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px 16px; border-bottom:1px solid var(--line); background:var(--surface); }
+  .plugin-header-brand{ display:flex; align-items:center; gap:8px; }
   .plugin-header img{ width:22px; height:22px; border-radius:6px; }
   .plugin-header span{ font-size:13px; font-weight:600; letter-spacing:-0.01em; }
+  .bg-swatch-wrap{ display:flex; align-items:center; gap:6px; }
+  .bg-swatch-wrap label{ font-size:9.5px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.03em; }
+  #bg-picker{ width:24px; height:24px; border-radius:7px; border:1.5px solid var(--line); padding:0; cursor:pointer; background:none; }
   .btn-add{ display:block; width:100%; background:transparent; border:1.5px dashed var(--line); color:var(--muted); padding:8px 14px; border-radius:8px; font-size:11.5px; font-weight:600; cursor:pointer; margin-top:6px; }
   .btn-add:hover{ border-color:var(--primary); color:var(--primary); }
   .extra-color-remove{ float:right; cursor:pointer; color:var(--muted); font-weight:600; text-transform:none; letter-spacing:0; }
@@ -65,8 +69,14 @@
 <body>
 
 <div class="plugin-header">
-  <img src="data:image/png;base64,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" alt="Tokenly">
-  <span>Tokenly</span>
+  <div class="plugin-header-brand">
+    <img src="data:image/png;base64,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" alt="Tokenly">
+    <span>Tokenly</span>
+  </div>
+  <div class="bg-swatch-wrap" title="Change the plugin's preview background — useful for judging shadows/colors against different canvas tones">
+    <label for="bg-picker">BG</label>
+    <input type="color" id="bg-picker" value="#212121" oninput="applyBackground(this.value)">
+  </div>
 </div>
 <div class="tabs" id="tabs"></div>
 <div id="panels"></div>
@@ -124,10 +134,10 @@ function sparkleButton(label, onclickJS){
 /* ============== state ============== */
 let state = {
   color: { primary:'#E52C65', useSecondary:true, secondary:'#7524B7', useCustomGrey:false, grey500:'#7D7796', extras:[] },
-  typography: { font:'Satoshi', scaleType:'major-third', customRatio:1.25, bodySize:16, overrides:{} },
-  spacing: { base:8, customBase:8, scaleType:'linear', ratio:1.5, steps:8 },
-  radius: { min:4, max:24, steps:4, scaleType:'linear' },
-  shadow: { enabled:true, steps:3, intensity:0.12, tint:'neutral', overrides:{} },
+  typography: { font:'Satoshi', scaleType:'major-third', customRatio:1.25, bodySize:16, overrides:{}, customRoles:[] },
+  spacing: { base:8, customBase:8, scaleType:'linear', ratio:1.5, steps:8, customValues:[] },
+  radius: { min:4, max:24, steps:4, scaleType:'linear', customValues:[] },
+  shadow: { enabled:true, steps:3, intensity:0.12, tint:'neutral', overrides:{}, customShadows:[] },
   components: {
     button:{ include:true, variants:'Primary, Secondary, Outline, Ghost, Destructive' },
     input:{ include:true },
@@ -154,11 +164,18 @@ function computeTokens(){
     const size = Math.round(state.typography.bodySize * Math.pow(ratio, ROLE_INDEX[role]));
     const ov = state.typography.overrides[role] || {};
     typeScale[role] = {
-      size,
+      size: ov.size !== undefined ? ov.size : size,
       weight: ov.weight !== undefined ? ov.weight : (ROLE_INDEX[role]>=3?700:ROLE_INDEX[role]>=5?900:400),
       letterSpacing: ov.letterSpacing !== undefined ? ov.letterSpacing : (ROLE_INDEX[role]>=2?-0.02:0),
       lineHeight: ov.lineHeight !== undefined ? ov.lineHeight : (ROLE_INDEX[role]>=2?1.15:1.5),
       font: ov.font || state.typography.font,
+    };
+  });
+  // user-added scale entries — fully custom, no ratio math involved, sit alongside the named roles.
+  state.typography.customRoles.forEach(c=>{
+    typeScale[c.name] = {
+      size: c.size, weight: c.weight, letterSpacing: c.letterSpacing, lineHeight: c.lineHeight,
+      font: c.font || state.typography.font,
     };
   });
 
@@ -167,6 +184,7 @@ function computeTokens(){
   for(let i=1;i<=state.spacing.steps;i++){
     spacingScale.push(state.spacing.scaleType==='linear' ? base*i : Math.round(base*Math.pow(state.spacing.ratio,i-1)));
   }
+  state.spacing.customValues.forEach(c => spacingScale.push(c.value));
 
   const radiusScale=[];
   for(let i=0;i<state.radius.steps;i++){
@@ -176,6 +194,7 @@ function computeTokens(){
       : state.radius.min * Math.pow(state.radius.max/state.radius.min, t);
     radiusScale.push(Math.round(v));
   }
+  state.radius.customValues.forEach(c => radiusScale.push(c.value));
 
   let shadowScale=[];
   if(state.shadow.enabled){
@@ -193,6 +212,8 @@ function computeTokens(){
         color: ov.color || tintColor,
       });
     }
+    // user-added shadow steps — literal values, no formula, appended after the generated steps.
+    state.shadow.customShadows.forEach(c => shadowScale.push({ x:c.x, y:c.y, blur:c.blur, spread:c.spread, opacity:c.opacity, color:c.color }));
   }
 
   return {
@@ -347,29 +368,39 @@ function onHexInput(which, value){
 }
 
 /* ============== Typography tab ============== */
+function typeRowHTML(key, displayName, s, isCustom, customId){
+  const open = expandedRole===key;
+  const nameField = isCustom
+    ? `<input type="text" id="name-input-${customId}" value="${escapeHtml(displayName)}" oninput="renameCustomRole('${customId}', this.value)" onclick="event.stopPropagation()" style="background:transparent; border:none; font-size:${Math.min(s.size,20)}px; font-weight:${s.weight}; color:var(--ink); width:auto; max-width:140px; padding:0;">`
+    : `<span id="sample-${key}" style="font-size:${s.size}px; font-weight:${s.weight}; letter-spacing:${s.letterSpacing}em; line-height:${s.lineHeight};">${displayName}</span>`;
+  const removeBtn = isCustom ? `<span class="extra-color-remove" onclick="event.stopPropagation(); removeCustomRole('${customId}')">remove</span>` : '';
+  const setFn = isCustom
+    ? (k,parse) => `setCustomRoleField('${customId}','${k}',${parse})`
+    : (k,parse) => `setOverride('${key}','${k}',${parse})`;
+  return `
+    <div class="type-row">
+      <div class="type-row-top" onclick="toggleRole('${key}')">
+        <div style="display:flex; align-items:center; gap:8px;">${nameField}${removeBtn}</div>
+        <span id="meta-${key}" style="font-size:9.5px; color:var(--muted); font-family:monospace;">${s.size}px / ${s.weight}</span>
+      </div>
+      <div class="override-box" id="override-${key}" style="display:${open?'grid':'none'};">
+        <label class="field"><span class="field-label">Size (px)</span><input type="number" value="${s.size}" oninput="${setFn('size','parseInt(this.value)||1')}"></label>
+        <label class="field"><span class="field-label">Weight</span><input type="number" step="100" value="${s.weight}" oninput="${setFn('weight','parseInt(this.value)||400')}"></label>
+        <label class="field"><span class="field-label">Letter spacing</span><input type="number" step="0.005" value="${s.letterSpacing}" oninput="${setFn('letterSpacing','parseFloat(this.value)||0')}"></label>
+        <label class="field"><span class="field-label">Line height</span><input type="number" step="0.05" value="${s.lineHeight}" oninput="${setFn('lineHeight','parseFloat(this.value)||1')}"></label>
+        <label class="field"><span class="field-label">Font</span><input type="text" value="${s.font}" oninput="${setFn('font','this.value')}"></label>
+      </div>
+    </div>`;
+}
 function typographyControlsHTML(){
   const t = computeTokens();
-  const rows = ROLES.slice().reverse().map(role=>{
-    const s = t.typography.scale[role];
-    return `
-      <div class="type-row">
-        <div class="type-row-top" onclick="toggleRole('${role}')">
-          <span id="sample-${role}" style="font-size:${s.size}px; font-weight:${s.weight}; letter-spacing:${s.letterSpacing}em; line-height:${s.lineHeight};">${role}</span>
-          <span id="meta-${role}" style="font-size:9.5px; color:var(--muted); font-family:monospace;">${s.size}px / ${s.weight}</span>
-        </div>
-        <div class="override-box" id="override-${role}" style="display:${expandedRole===role?'grid':'none'};">
-          <label class="field"><span class="field-label">Weight</span><input type="number" step="100" value="${s.weight}" oninput="setOverride('${role}','weight',parseInt(this.value))"></label>
-          <label class="field"><span class="field-label">Letter spacing</span><input type="number" step="0.005" value="${s.letterSpacing}" oninput="setOverride('${role}','letterSpacing',parseFloat(this.value))"></label>
-          <label class="field"><span class="field-label">Line height</span><input type="number" step="0.05" value="${s.lineHeight}" oninput="setOverride('${role}','lineHeight',parseFloat(this.value))"></label>
-          <label class="field"><span class="field-label">Font</span><input type="text" value="${s.font}" oninput="setOverride('${role}','font',this.value)"></label>
-        </div>
-      </div>`;
-  }).join('');
+  const builtInRows = ROLES.slice().reverse().map(role => typeRowHTML(role, role, t.typography.scale[role], false)).join('');
+  const customRows = state.typography.customRoles.map(c => typeRowHTML('c'+c.id, c.name, t.typography.scale[c.name], true, c.id)).join('');
   return `
     <label class="field"><span class="field-label">Typeface</span><input type="text" value="${state.typography.font}" oninput="state.typography.font=this.value; updateTypographyPreview()"></label>
     <div class="row">
       <div><label class="field"><span class="field-label">Scale</span>
-        <select onchange="state.typography.scaleType=this.value; renderCurrentTab()">
+        <select onchange="clearSizeOverrides(); state.typography.scaleType=this.value; renderCurrentTab()">
           ${['minor-second','major-second','minor-third','major-third','perfect-fourth','golden','custom'].map(v=>`<option value="${v}" ${state.typography.scaleType===v?'selected':''}>${v}</option>`).join('')}
         </select>
       </label></div>
@@ -377,20 +408,51 @@ function typographyControlsHTML(){
     </div>
     ${state.typography.scaleType==='custom' ? `<label class="field"><span class="field-label">Custom ratio</span><input type="number" step="0.01" value="${state.typography.customRatio}" oninput="state.typography.customRatio=parseFloat(this.value); updateTypographyPreview()"></label>` : ''}
     <div class="section-label">Scale preview — click a row to override</div>
-    ${rows}
+    ${builtInRows}
+    ${customRows}
+    <button type="button" class="btn-add" onclick="addCustomTypeRole()">+ Add size</button>
     ${sparkleButton('Publish text styles', "publish('publish-typography')")}
     <div class="status" id="status-Typography"></div>
   `;
 }
-function toggleRole(role){
-  expandedRole = expandedRole===role ? null : role;
-  ROLES.forEach(r=>{
-    const box = document.getElementById('override-'+r);
-    if(box) box.style.display = (expandedRole===r) ? 'grid' : 'none';
-  });
+function toggleRole(key){
+  const prev = expandedRole;
+  expandedRole = expandedRole===key ? null : key;
+  if(prev){ const prevBox = document.getElementById('override-'+prev); if(prevBox) prevBox.style.display = 'none'; }
+  if(expandedRole){ const box = document.getElementById('override-'+expandedRole); if(box) box.style.display = 'grid'; }
 }
 function setOverride(role,key,value){
   state.typography.overrides[role] = Object.assign({}, state.typography.overrides[role]||{}, {[key]:value});
+  updateTypographyPreview();
+}
+// switching the ratio/scale should re-derive every row's size from the formula again — a
+// manually-set size from before is treated as stale once you've asked for a different scale.
+// Custom (user-added) entries are untouched since they were never formula-driven to begin with.
+function clearSizeOverrides(){
+  Object.keys(state.typography.overrides).forEach(role=>{
+    if(state.typography.overrides[role] && 'size' in state.typography.overrides[role]){
+      delete state.typography.overrides[role].size;
+    }
+  });
+}
+function addCustomTypeRole(){
+  const id = 'r'+Date.now();
+  state.typography.customRoles.push({ id, name:'Custom '+(state.typography.customRoles.length+1), size: state.typography.bodySize, weight:400, letterSpacing:0, lineHeight:1.5, font:'' });
+  renderCurrentTab();
+}
+function removeCustomRole(id){
+  if(expandedRole === 'c'+id) expandedRole = null;
+  state.typography.customRoles = state.typography.customRoles.filter(c=>c.id!==id);
+  renderCurrentTab();
+}
+function renameCustomRole(id, name){
+  const c = state.typography.customRoles.find(c=>c.id===id);
+  if(c) c.name = name;
+  updateTypographyPreview();
+}
+function setCustomRoleField(id, key, value){
+  const c = state.typography.customRoles.find(c=>c.id===id);
+  if(c) c[key] = value;
   updateTypographyPreview();
 }
 function updateTypographyPreview(){
@@ -405,6 +467,14 @@ function updateTypographyPreview(){
       sampleEl.style.letterSpacing = s.letterSpacing+'em';
       sampleEl.style.lineHeight = s.lineHeight;
     }
+    if(metaEl) metaEl.textContent = s.size+'px / '+s.weight;
+  });
+  state.typography.customRoles.forEach(c=>{
+    const s = t.typography.scale[c.name];
+    if(!s) return;
+    const nameEl = document.getElementById('name-input-'+c.id);
+    const metaEl = document.getElementById('meta-c'+c.id);
+    if(nameEl){ nameEl.style.fontSize = Math.min(s.size,20)+'px'; nameEl.style.fontWeight = s.weight; }
     if(metaEl) metaEl.textContent = s.size+'px / '+s.weight;
   });
 }
@@ -430,8 +500,9 @@ function spacingControlsHTML(){
     </div>
     ${state.spacing.base==='custom' ? `<label class="field"><span class="field-label">Custom base (px)</span><input type="number" value="${state.spacing.customBase}" oninput="state.spacing.customBase=parseInt(this.value)||1; updateSpacingPreview()"></label>` : ''}
     ${state.spacing.scaleType==='geometric' ? `<label class="field"><span class="field-label">Ratio</span><input type="number" step="0.1" value="${state.spacing.ratio}" oninput="state.spacing.ratio=parseFloat(this.value); updateSpacingPreview()"></label>` : ''}
-    <div class="section-label">Preview</div>
+    <div class="section-label">Preview — added values are directly editable</div>
     <div id="spacing-preview"></div>
+    <button type="button" class="btn-add" onclick="addCustomSpacing()">+ Add spacing value</button>
     ${sparkleButton('Publish spacing variables', "publish('publish-spacing')")}
     <div class="status" id="status-Spacing"></div>
   `;
@@ -439,16 +510,45 @@ function spacingControlsHTML(){
 function spacingPreviewHTML(t){
   // flex:0 0 auto here overrides the ".row > div{flex:1}" rule that was stretching every bar
   // to the same full width regardless of its actual px value.
-  return t.spacing.map((v,i)=>`
+  return t.spacing.map((v,i)=>{
+    const pos = i+1;
+    const isCustom = pos > state.spacing.steps;
+    const customId = isCustom ? state.spacing.customValues[pos - state.spacing.steps - 1].id : null;
+    const valueField = isCustom
+      ? `<input type="number" value="${v}" oninput="setCustomSpacingValue('${customId}', parseInt(this.value)||0)" style="width:52px; padding:3px 6px; font-size:10px; border-radius:5px; border:1.5px solid var(--line); background:var(--surface-2); color:var(--ink); flex:0 0 auto;">
+         <span class="extra-color-remove" onclick="removeCustomSpacing('${customId}')">remove</span>`
+      : `<span style="font-size:10px; color:var(--muted); width:40px; flex:0 0 auto;">${v}px</span>`;
+    return `
     <div class="row" style="align-items:center; margin-bottom:6px;">
-      <span style="width:44px; font-size:10px; font-family:monospace; flex:0 0 auto;">sp-${i+1}</span>
-      <div style="height:10px; background:${t.color.primary['600']}; width:${v}px; border-radius:3px; flex:0 0 auto;"></div>
-      <span style="font-size:10px; color:var(--muted); width:40px; flex:0 0 auto;">${v}px</span>
-    </div>`).join('');
+      <span style="width:44px; font-size:10px; font-family:monospace; flex:0 0 auto;">sp-${pos}</span>
+      <div id="${isCustom ? 'spacing-bar-'+customId : ''}" style="height:10px; background:${t.color.primary['600']}; width:${v}px; border-radius:3px; flex:0 0 auto;"></div>
+      ${valueField}
+    </div>`;
+  }).join('');
 }
 function updateSpacingPreview(){
   const el = document.getElementById('spacing-preview');
   if(el) el.innerHTML = spacingPreviewHTML(computeTokens());
+}
+function addCustomSpacing(){
+  const id = 'sp'+Date.now();
+  const t = computeTokens();
+  const last = t.spacing.length ? t.spacing[t.spacing.length-1] : 8;
+  const step = state.spacing.base==='custom' ? state.spacing.customBase : state.spacing.base;
+  state.spacing.customValues.push({ id, value: last + step });
+  renderCurrentTab();
+}
+function removeCustomSpacing(id){
+  state.spacing.customValues = state.spacing.customValues.filter(c=>c.id!==id);
+  updateSpacingPreview();
+}
+function setCustomSpacingValue(id, value){
+  const c = state.spacing.customValues.find(c=>c.id===id);
+  if(c) c.value = value;
+  // update only the bar's width — never re-render the row, or the number input the user is
+  // typing in gets recreated and loses focus/selection after a single keystroke.
+  const bar = document.getElementById('spacing-bar-'+id);
+  if(bar) bar.style.width = value+'px';
 }
 
 /* ============== Radius tab ============== */
@@ -467,22 +567,49 @@ function radiusControlsHTML(){
         </select>
       </label></div>
     </div>
-    <div class="section-label">Preview <span style="text-transform:none; font-weight:400;">— squares shown at ${RADIUS_PREVIEW_SIZE}×${RADIUS_PREVIEW_SIZE}px</span></div>
+    <div class="section-label">Preview <span style="text-transform:none; font-weight:400;">— squares shown at ${RADIUS_PREVIEW_SIZE}×${RADIUS_PREVIEW_SIZE}px, added values are directly editable</span></div>
     <div id="radius-preview"></div>
+    <button type="button" class="btn-add" onclick="addCustomRadius()">+ Add radius step</button>
     ${sparkleButton('Publish radius variables', "publish('publish-radius')")}
     <div class="status" id="status-Radius"></div>
   `;
 }
 function radiusPreviewHTML(t){
-  return t.radius.map((r,i)=>`
+  return t.radius.map((r,i)=>{
+    const pos = i+1;
+    const isCustom = pos > state.radius.steps;
+    const customId = isCustom ? state.radius.customValues[pos - state.radius.steps - 1].id : null;
+    const caption = isCustom
+      ? `<input type="number" value="${r}" oninput="setCustomRadiusValue('${customId}', parseInt(this.value)||0)" style="width:44px; padding:2px 4px; font-size:9px; border-radius:5px; border:1.5px solid var(--line); background:var(--surface-2); color:var(--ink); text-align:center;">
+         <span class="extra-color-remove" onclick="removeCustomRadius('${customId}')">remove</span>`
+      : `r-${pos} · ${r}px`;
+    return `
     <div style="display:inline-block; text-align:center; margin:0 12px 12px 0;">
-      <div style="width:${RADIUS_PREVIEW_SIZE}px; height:${RADIUS_PREVIEW_SIZE}px; background:white; border:1.5px solid var(--line); border-radius:${r}px;"></div>
-      <div style="font-size:9px; color:var(--muted); margin-top:4px;">r-${i+1} · ${r}px</div>
-    </div>`).join('');
+      <div id="${isCustom ? 'radius-box-'+customId : ''}" style="width:${RADIUS_PREVIEW_SIZE}px; height:${RADIUS_PREVIEW_SIZE}px; background:white; border:1.5px solid var(--line); border-radius:${r}px;"></div>
+      <div style="font-size:9px; color:var(--muted); margin-top:4px;">${caption}</div>
+    </div>`;
+  }).join('');
 }
 function updateRadiusPreview(){
   const el = document.getElementById('radius-preview');
   if(el) el.innerHTML = radiusPreviewHTML(computeTokens());
+}
+function addCustomRadius(){
+  const id = 'rd'+Date.now();
+  const t = computeTokens();
+  const last = t.radius.length ? t.radius[t.radius.length-1] : 8;
+  state.radius.customValues.push({ id, value: last+4 });
+  renderCurrentTab();
+}
+function removeCustomRadius(id){
+  state.radius.customValues = state.radius.customValues.filter(c=>c.id!==id);
+  updateRadiusPreview();
+}
+function setCustomRadiusValue(id, value){
+  const c = state.radius.customValues.find(c=>c.id===id);
+  if(c) c.value = value;
+  const box = document.getElementById('radius-box-'+id);
+  if(box) box.style.borderRadius = value+'px';
 }
 
 /* ============== Shadow tab ============== */
@@ -493,6 +620,18 @@ function shadowCss(s){
 function shadowMetaText(s){
   return `X${s.x} Y${s.y} B${s.blur} S${s.spread} · ${s.opacity}`;
 }
+function shadowCardStyle(s){
+  const light = luminance(s.color) <= 0.6;
+  return { bg: light ? '#FFFFFF' : '#141414', border: light ? '#E5E3ED' : '#3A3A3A' };
+}
+// ordered list of keys matching tokens.shadow[] positions: formula steps as "1","2",... then
+// custom entries as "c<id>" — shared by rendering and by the bulk color-apply update.
+function shadowStepKeys(){
+  const arr=[];
+  for(let i=1;i<=state.shadow.steps;i++) arr.push(String(i));
+  state.shadow.customShadows.forEach(c=>arr.push('c'+c.id));
+  return arr;
+}
 function shadowControlsHTML(){
   if(!state.shadow.enabled){
     return `
@@ -500,6 +639,7 @@ function shadowControlsHTML(){
       <div style="font-size:11px; color:var(--muted);">Shadows off — nothing will be published for this tab.</div>
     `;
   }
+  const tintColor = state.shadow.tint==='primary' ? state.color.primary : '#18161F';
   return `
     <div class="checkbox-row"><input type="checkbox" checked onchange="state.shadow.enabled=this.checked; renderCurrentTab()"> <span class="field-label" style="margin:0;">Enable shadows</span></div>
     <div class="row">
@@ -512,62 +652,108 @@ function shadowControlsHTML(){
         </select>
       </label></div>
     </div>
+    <label class="field"><span class="field-label">Apply one color to all shadows</span>
+      <input type="color" value="${tintColor}" oninput="applyColorToAllShadows(this.value)">
+    </label>
     <div class="section-label">Preview — click a step to customize X/Y/blur/spread/opacity/color</div>
     <div id="shadow-rows"></div>
+    <button type="button" class="btn-add" onclick="addCustomShadow()">+ Add shadow</button>
     ${sparkleButton('Publish effect styles', "publish('publish-shadow')")}
     <div class="status" id="status-Shadow"></div>
   `;
 }
+function shadowRowTemplate(key, label, s, isCustom, customId){
+  // a dark shadow needs a light card to read against, and a bright/light shadow needs a
+  // dark card — otherwise it visually disappears against a same-tone background.
+  const card = shadowCardStyle(s);
+  const open = expandedShadowStep===key;
+  const setFn = isCustom
+    ? (k,parse) => `setCustomShadowField('${customId}','${k}',${parse})`
+    : (k,parse) => `setShadowOverride(${key},'${k}',${parse})`;
+  const removeBtn = isCustom ? ` <span class="extra-color-remove" onclick="event.stopPropagation(); removeCustomShadow('${customId}')">remove</span>` : '';
+  return `
+    <div class="type-row">
+      <div class="type-row-top" onclick="toggleShadowStep('${key}')">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div id="shadow-swatch-${key}" style="width:72px; height:72px; border-radius:12px; flex:0 0 auto; background:${card.bg}; border:1.5px solid ${card.border}; box-shadow:${shadowCss(s)};"></div>
+          <span style="font-size:11.5px; font-weight:600;">${label}${removeBtn}</span>
+        </div>
+        <span id="shadow-meta-${key}" style="font-size:9px; color:var(--muted); font-family:monospace;">${shadowMetaText(s)}</span>
+      </div>
+      <div class="override-box" id="shadow-override-${key}" style="display:${open?'grid':'none'}; grid-template-columns:1fr 1fr;">
+        <label class="field"><span class="field-label">X offset</span><input type="number" value="${s.x}" oninput="${setFn('x','parseFloat(this.value)||0')}"></label>
+        <label class="field"><span class="field-label">Y offset</span><input type="number" value="${s.y}" oninput="${setFn('y','parseFloat(this.value)||0')}"></label>
+        <label class="field"><span class="field-label">Blur</span><input type="number" min="0" value="${s.blur}" oninput="${setFn('blur','Math.max(0,parseFloat(this.value)||0)')}"></label>
+        <label class="field"><span class="field-label">Spread</span><input type="number" value="${s.spread}" oninput="${setFn('spread','parseFloat(this.value)||0')}"></label>
+        <label class="field"><span class="field-label">Opacity (0–1)</span><input type="number" step="0.01" min="0" max="1" value="${s.opacity}" oninput="${setFn('opacity','Math.max(0,Math.min(1,parseFloat(this.value)||0))')}"></label>
+        <label class="field"><span class="field-label">Color</span><input type="color" id="shadow-color-input-${key}" value="${s.color}" oninput="${setFn('color','this.value')}"></label>
+      </div>
+    </div>`;
+}
 function shadowRowsHTML(t){
-  return t.shadow.map((s,idx)=>{
-    const i = idx+1;
-    // a dark shadow needs a light card to read against, and a bright/light shadow needs a
-    // dark card — otherwise it visually disappears against a same-tone background.
-    const cardBg = luminance(s.color) > 0.6 ? '#141414' : '#FFFFFF';
-    const open = expandedShadowStep===i;
-    return `
-      <div class="type-row">
-        <div class="type-row-top" onclick="toggleShadowStep(${i})">
-          <div style="display:flex; align-items:center; gap:10px;">
-            <div id="shadow-swatch-${i}" style="width:40px; height:40px; border-radius:8px; flex:0 0 auto; background:${cardBg}; box-shadow:${shadowCss(s)};"></div>
-            <span style="font-size:11.5px; font-weight:600;">shadow-${i}</span>
-          </div>
-          <span id="shadow-meta-${i}" style="font-size:9px; color:var(--muted); font-family:monospace;">${shadowMetaText(s)}</span>
-        </div>
-        <div class="override-box" id="shadow-override-${i}" style="display:${open?'grid':'none'}; grid-template-columns:1fr 1fr;">
-          <label class="field"><span class="field-label">X offset</span><input type="number" value="${s.x}" oninput="setShadowOverride(${i},'x',parseFloat(this.value)||0)"></label>
-          <label class="field"><span class="field-label">Y offset</span><input type="number" value="${s.y}" oninput="setShadowOverride(${i},'y',parseFloat(this.value)||0)"></label>
-          <label class="field"><span class="field-label">Blur</span><input type="number" min="0" value="${s.blur}" oninput="setShadowOverride(${i},'blur',Math.max(0,parseFloat(this.value)||0))"></label>
-          <label class="field"><span class="field-label">Spread</span><input type="number" value="${s.spread}" oninput="setShadowOverride(${i},'spread',parseFloat(this.value)||0)"></label>
-          <label class="field"><span class="field-label">Opacity (0–1)</span><input type="number" step="0.01" min="0" max="1" value="${s.opacity}" oninput="setShadowOverride(${i},'opacity',Math.max(0,Math.min(1,parseFloat(this.value)||0)))"></label>
-          <label class="field"><span class="field-label">Color</span><input type="color" value="${s.color}" oninput="setShadowOverride(${i},'color',this.value)"></label>
-        </div>
-      </div>`;
+  const keys = shadowStepKeys();
+  return keys.map((key,idx) => {
+    const isCustom = key.charAt(0)==='c';
+    const customId = isCustom ? key.slice(1) : null;
+    return shadowRowTemplate(key, 'shadow-'+(idx+1), t.shadow[idx], isCustom, customId);
   }).join('');
 }
 function updateShadowPreview(){
   const el = document.getElementById('shadow-rows');
   if(el) el.innerHTML = shadowRowsHTML(computeTokens());
 }
-function toggleShadowStep(i){
-  expandedShadowStep = expandedShadowStep===i ? null : i;
-  const t = computeTokens();
-  t.shadow.forEach((s,idx)=>{
-    const n = idx+1;
-    const box = document.getElementById('shadow-override-'+n);
-    if(box) box.style.display = (expandedShadowStep===n) ? 'grid' : 'none';
-  });
+function toggleShadowStep(key){
+  const prev = expandedShadowStep;
+  expandedShadowStep = expandedShadowStep===key ? null : key;
+  if(prev){ const b = document.getElementById('shadow-override-'+prev); if(b) b.style.display = 'none'; }
+  if(expandedShadowStep){ const b = document.getElementById('shadow-override-'+expandedShadowStep); if(b) b.style.display = 'grid'; }
+}
+function updateShadowSwatchOnly(key, s){
+  const swatch = document.getElementById('shadow-swatch-'+key);
+  const meta = document.getElementById('shadow-meta-'+key);
+  const card = shadowCardStyle(s);
+  if(swatch){ swatch.style.background = card.bg; swatch.style.borderColor = card.border; swatch.style.boxShadow = shadowCss(s); }
+  if(meta) meta.textContent = shadowMetaText(s);
 }
 function setShadowOverride(i,key,value){
   state.shadow.overrides[i] = Object.assign({}, state.shadow.overrides[i]||{}, {[key]:value});
   const t = computeTokens();
   const s = t.shadow[i-1];
-  if(!s) return;
-  const swatch = document.getElementById('shadow-swatch-'+i);
-  const meta = document.getElementById('shadow-meta-'+i);
-  const cardBg = luminance(s.color) > 0.6 ? '#141414' : '#FFFFFF';
-  if(swatch){ swatch.style.background = cardBg; swatch.style.boxShadow = shadowCss(s); }
-  if(meta) meta.textContent = shadowMetaText(s);
+  if(s) updateShadowSwatchOnly(String(i), s);
+}
+function addCustomShadow(){
+  const id = 'sh'+Date.now();
+  const tintColor = state.shadow.tint==='primary' ? state.color.primary : '#18161F';
+  state.shadow.customShadows.push({ id, x:0, y:8, blur:24, spread:0, opacity:0.2, color:tintColor });
+  renderCurrentTab();
+}
+function removeCustomShadow(id){
+  if(expandedShadowStep === 'c'+id) expandedShadowStep = null;
+  state.shadow.customShadows = state.shadow.customShadows.filter(c=>c.id!==id);
+  updateShadowPreview();
+}
+function setCustomShadowField(id,key,value){
+  const c = state.shadow.customShadows.find(c=>c.id===id);
+  if(c) c[key] = value;
+  const t = computeTokens();
+  const idx = shadowStepKeys().indexOf('c'+id);
+  const s = t.shadow[idx];
+  if(s) updateShadowSwatchOnly('c'+id, s);
+}
+// bulk-applies one color to every existing shadow (formula steps + custom ones) while leaving
+// every other property (offsets, blur, spread, opacity) untouched — and individual per-step
+// color pickers remain fully editable afterward, this only sets a starting point for all of them.
+function applyColorToAllShadows(hex){
+  for(let i=1;i<=state.shadow.steps;i++){
+    state.shadow.overrides[i] = Object.assign({}, state.shadow.overrides[i]||{}, {color:hex});
+  }
+  state.shadow.customShadows.forEach(c=>{ c.color = hex; });
+  const t = computeTokens();
+  shadowStepKeys().forEach((key,idx)=>{
+    updateShadowSwatchOnly(key, t.shadow[idx]);
+    const ci = document.getElementById('shadow-color-input-'+key);
+    if(ci) ci.value = hex;
+  });
 }
 
 /* ============== Components tab ============== */
@@ -589,6 +775,21 @@ function componentsControlsHTML(){
     ${sparkleButton('Publish components to canvas', "publish('publish-components')")}
     <div class="status" id="status-Components"></div>
   `;
+}
+
+// Lets the user set an arbitrary plugin-chrome background (not just a light/dark toggle) so they
+// can judge colors and shadows against whatever tone their real canvas will sit on. Surfaces,
+// borders, and text contrast are all re-derived from the one picked color rather than hardcoded,
+// so any background stays legible.
+function applyBackground(hex){
+  const dark = luminance(hex) < 0.5;
+  const root = document.documentElement.style;
+  root.setProperty('--bg', hex);
+  root.setProperty('--surface', mix(hex, dark ? '#FFFFFF' : '#000000', 0.06));
+  root.setProperty('--surface-2', mix(hex, dark ? '#FFFFFF' : '#000000', 0.12));
+  root.setProperty('--line', mix(hex, dark ? '#FFFFFF' : '#000000', 0.18));
+  root.setProperty('--ink', dark ? '#F2F1F6' : '#18161F');
+  root.setProperty('--muted', dark ? '#9C98A8' : '#6B6779');
 }
 
 renderCurrentTab();

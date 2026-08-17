@@ -43,10 +43,12 @@
   .status{ font-size:11px; color:var(--muted); margin-top:8px; min-height:14px; }
   .status.ok{ color:#4ADE80; } .status.err{ color:#F87171; }
   .swatch-row{ display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-bottom:14px; }
-  .swatch{ height:44px; border-radius:6px; display:flex; align-items:flex-end; padding:4px; font-size:9px; font-weight:700; color:white; cursor:pointer; }
+  .swatch{ height:44px; border-radius:6px; display:flex; flex-direction:column; justify-content:space-between; padding:4px; color:white; cursor:pointer; }
+  .swatch-step{ font-size:9px; font-weight:700; }
+  .swatch-hex{ font-size:7.5px; font-weight:600; opacity:0.85; letter-spacing:0.01em; }
   .section-label{ font-size:10px; color:var(--muted); text-transform:uppercase; margin:14px 0 6px; font-weight:600; }
   .type-row{ border-bottom:1px solid var(--line); padding:9px 0; }
-  .type-row-top{ display:flex; justify-content:space-between; align-items:baseline; cursor:pointer; }
+  .type-row-top{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:4px 10px; cursor:pointer; }
   .override-box{ background:var(--surface); border-radius:7px; padding:10px; margin-top:8px; grid-template-columns:1fr 1fr; gap:8px; }
   .comp-card{ border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:10px; background:var(--surface); }
   .comp-card-head{ display:flex; align-items:center; gap:8px; font-weight:600; font-size:12.5px; margin-bottom:6px; }
@@ -84,6 +86,7 @@ function mix(hex,target,factor){
   const a=hexToRgb(hex), b=hexToRgb(target);
   return rgbToHex(a.r+(b.r-a.r)*factor, a.g+(b.g-a.g)*factor, a.b+(b.b-a.b)*factor);
 }
+function luminance(hex){ const {r,g,b}=hexToRgb(hex); return (0.299*r+0.587*g+0.114*b)/255; }
 function buildScale(base){
   const steps=[50,100,200,300,400,500,600,700,800,900];
   const tint={50:0.95,100:0.88,200:0.74,300:0.58,400:0.32,500:0.14};
@@ -124,7 +127,7 @@ let state = {
   typography: { font:'Satoshi', scaleType:'major-third', customRatio:1.25, bodySize:16, overrides:{} },
   spacing: { base:8, customBase:8, scaleType:'linear', ratio:1.5, steps:8 },
   radius: { min:4, max:24, steps:4, scaleType:'linear' },
-  shadow: { enabled:true, steps:3, intensity:0.12, tint:'neutral' },
+  shadow: { enabled:true, steps:3, intensity:0.12, tint:'neutral', overrides:{} },
   components: {
     button:{ include:true, variants:'Primary, Secondary, Outline, Ghost, Destructive' },
     input:{ include:true },
@@ -136,6 +139,7 @@ let state = {
   }
 };
 let expandedRole = null;
+let expandedShadowStep = null;
 let currentTab = 'Color';
 
 function computeTokens(){
@@ -176,10 +180,18 @@ function computeTokens(){
   let shadowScale=[];
   if(state.shadow.enabled){
     const tintColor = state.shadow.tint==='primary' ? state.color.primary : '#18161F';
-    const rgb = hexToRgb(tintColor);
     for(let i=1;i<=state.shadow.steps;i++){
-      const blur=6*i*i, y=2*i*i, alpha=(state.shadow.intensity/i*1.4);
-      shadowScale.push(`0 ${y}px ${blur}px rgba(${rgb.r},${rgb.g},${rgb.b},${alpha.toFixed(2)})`);
+      const ov = state.shadow.overrides[i] || {};
+      const defaultY = 2*i*i, defaultBlur = 6*i*i;
+      const defaultOpacity = Math.round(Math.min(1, state.shadow.intensity/i*1.4)*100)/100;
+      shadowScale.push({
+        x: ov.x !== undefined ? ov.x : 0,
+        y: ov.y !== undefined ? ov.y : defaultY,
+        blur: ov.blur !== undefined ? ov.blur : defaultBlur,
+        spread: ov.spread !== undefined ? ov.spread : 0,
+        opacity: ov.opacity !== undefined ? ov.opacity : defaultOpacity,
+        color: ov.color || tintColor,
+      });
     }
   }
 
@@ -255,7 +267,7 @@ function colorControlsHTML(){
     `).join('')}
     <button type="button" class="btn-add" onclick="addExtraColor()">+ Add color</button>
     <div id="color-preview"></div>
-    ${sparkleButton('Publish color styles', "publish('publish-colors')")}
+    ${sparkleButton('Publish color variables', "publish('publish-colors')")}
     <div class="status" id="status-Color"></div>
   `;
 }
@@ -293,7 +305,10 @@ function onExtraHexInput(id, value){
 function colorPreviewHTML(t){
   const scaleHtml=(label,scale)=>`
     <div class="section-label">${label}</div>
-    <div class="swatch-row">${Object.entries(scale).map(([step,hex])=>`<div class="swatch" style="background:${hex}" onclick="navigator.clipboard.writeText('${hex}')">${step}</div>`).join('')}</div>`;
+    <div class="swatch-row">${Object.entries(scale).map(([step,hex])=>{
+      const textColor = luminance(hex) > 0.6 ? '#18161F' : '#FFFFFF';
+      return `<div class="swatch" style="background:${hex}; color:${textColor};" onclick="navigator.clipboard.writeText('${hex}')" title="click to copy"><span class="swatch-step">${step}</span><span class="swatch-hex">${hex}</span></div>`;
+    }).join('')}</div>`;
   let html = scaleHtml('Primary scale', t.color.primary);
   if(t.color.secondary) html += scaleHtml('Secondary scale', t.color.secondary);
   // grey scale swatches only render once the user opts into a custom grey — otherwise just a
@@ -339,7 +354,7 @@ function typographyControlsHTML(){
     return `
       <div class="type-row">
         <div class="type-row-top" onclick="toggleRole('${role}')">
-          <span id="sample-${role}" style="font-size:${Math.min(s.size,22)}px; font-weight:${s.weight}; letter-spacing:${s.letterSpacing}em; line-height:${s.lineHeight};">${role}</span>
+          <span id="sample-${role}" style="font-size:${s.size}px; font-weight:${s.weight}; letter-spacing:${s.letterSpacing}em; line-height:${s.lineHeight};">${role}</span>
           <span id="meta-${role}" style="font-size:9.5px; color:var(--muted); font-family:monospace;">${s.size}px / ${s.weight}</span>
         </div>
         <div class="override-box" id="override-${role}" style="display:${expandedRole===role?'grid':'none'};">
@@ -385,7 +400,7 @@ function updateTypographyPreview(){
     const sampleEl = document.getElementById('sample-'+role);
     const metaEl = document.getElementById('meta-'+role);
     if(sampleEl){
-      sampleEl.style.fontSize = Math.min(s.size,22)+'px';
+      sampleEl.style.fontSize = s.size+'px';
       sampleEl.style.fontWeight = s.weight;
       sampleEl.style.letterSpacing = s.letterSpacing+'em';
       sampleEl.style.lineHeight = s.lineHeight;
@@ -471,6 +486,13 @@ function updateRadiusPreview(){
 }
 
 /* ============== Shadow tab ============== */
+function shadowCss(s){
+  const rgb = hexToRgb(s.color);
+  return `${s.x}px ${s.y}px ${s.blur}px ${s.spread}px rgba(${rgb.r},${rgb.g},${rgb.b},${s.opacity})`;
+}
+function shadowMetaText(s){
+  return `X${s.x} Y${s.y} B${s.blur} S${s.spread} · ${s.opacity}`;
+}
 function shadowControlsHTML(){
   if(!state.shadow.enabled){
     return `
@@ -483,29 +505,69 @@ function shadowControlsHTML(){
     <div class="row">
       <div><label class="field"><span class="field-label">Steps</span><input type="number" value="${state.shadow.steps}" oninput="state.shadow.steps=parseInt(this.value)||1; updateShadowPreview()"></label></div>
       <div><label class="field"><span class="field-label">Intensity</span><input type="number" step="0.02" value="${state.shadow.intensity}" oninput="state.shadow.intensity=parseFloat(this.value); updateShadowPreview()"></label></div>
-      <div><label class="field"><span class="field-label">Tint</span>
+      <div><label class="field"><span class="field-label">Default tint</span>
         <select onchange="state.shadow.tint=this.value; updateShadowPreview()">
           <option value="neutral" ${state.shadow.tint==='neutral'?'selected':''}>Neutral</option>
           <option value="primary" ${state.shadow.tint==='primary'?'selected':''}>Primary-tinted</option>
         </select>
       </label></div>
     </div>
-    <div class="section-label">Preview</div>
-    <div id="shadow-preview"></div>
+    <div class="section-label">Preview — click a step to customize X/Y/blur/spread/opacity/color</div>
+    <div id="shadow-rows"></div>
     ${sparkleButton('Publish effect styles', "publish('publish-shadow')")}
     <div class="status" id="status-Shadow"></div>
   `;
 }
-function shadowPreviewHTML(t){
-  return t.shadow.map((s,i)=>`
-    <div style="display:inline-block; text-align:center; margin:0 16px 16px 0;">
-      <div style="width:48px; height:48px; background:white; border-radius:10px; box-shadow:${s};"></div>
-      <div style="font-size:9px; color:var(--muted); margin-top:8px;">shadow-${i+1}</div>
-    </div>`).join('');
+function shadowRowsHTML(t){
+  return t.shadow.map((s,idx)=>{
+    const i = idx+1;
+    // a dark shadow needs a light card to read against, and a bright/light shadow needs a
+    // dark card — otherwise it visually disappears against a same-tone background.
+    const cardBg = luminance(s.color) > 0.6 ? '#141414' : '#FFFFFF';
+    const open = expandedShadowStep===i;
+    return `
+      <div class="type-row">
+        <div class="type-row-top" onclick="toggleShadowStep(${i})">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div id="shadow-swatch-${i}" style="width:40px; height:40px; border-radius:8px; flex:0 0 auto; background:${cardBg}; box-shadow:${shadowCss(s)};"></div>
+            <span style="font-size:11.5px; font-weight:600;">shadow-${i}</span>
+          </div>
+          <span id="shadow-meta-${i}" style="font-size:9px; color:var(--muted); font-family:monospace;">${shadowMetaText(s)}</span>
+        </div>
+        <div class="override-box" id="shadow-override-${i}" style="display:${open?'grid':'none'}; grid-template-columns:1fr 1fr;">
+          <label class="field"><span class="field-label">X offset</span><input type="number" value="${s.x}" oninput="setShadowOverride(${i},'x',parseFloat(this.value)||0)"></label>
+          <label class="field"><span class="field-label">Y offset</span><input type="number" value="${s.y}" oninput="setShadowOverride(${i},'y',parseFloat(this.value)||0)"></label>
+          <label class="field"><span class="field-label">Blur</span><input type="number" min="0" value="${s.blur}" oninput="setShadowOverride(${i},'blur',Math.max(0,parseFloat(this.value)||0))"></label>
+          <label class="field"><span class="field-label">Spread</span><input type="number" value="${s.spread}" oninput="setShadowOverride(${i},'spread',parseFloat(this.value)||0)"></label>
+          <label class="field"><span class="field-label">Opacity (0–1)</span><input type="number" step="0.01" min="0" max="1" value="${s.opacity}" oninput="setShadowOverride(${i},'opacity',Math.max(0,Math.min(1,parseFloat(this.value)||0)))"></label>
+          <label class="field"><span class="field-label">Color</span><input type="color" value="${s.color}" oninput="setShadowOverride(${i},'color',this.value)"></label>
+        </div>
+      </div>`;
+  }).join('');
 }
 function updateShadowPreview(){
-  const el = document.getElementById('shadow-preview');
-  if(el) el.innerHTML = shadowPreviewHTML(computeTokens());
+  const el = document.getElementById('shadow-rows');
+  if(el) el.innerHTML = shadowRowsHTML(computeTokens());
+}
+function toggleShadowStep(i){
+  expandedShadowStep = expandedShadowStep===i ? null : i;
+  const t = computeTokens();
+  t.shadow.forEach((s,idx)=>{
+    const n = idx+1;
+    const box = document.getElementById('shadow-override-'+n);
+    if(box) box.style.display = (expandedShadowStep===n) ? 'grid' : 'none';
+  });
+}
+function setShadowOverride(i,key,value){
+  state.shadow.overrides[i] = Object.assign({}, state.shadow.overrides[i]||{}, {[key]:value});
+  const t = computeTokens();
+  const s = t.shadow[i-1];
+  if(!s) return;
+  const swatch = document.getElementById('shadow-swatch-'+i);
+  const meta = document.getElementById('shadow-meta-'+i);
+  const cardBg = luminance(s.color) > 0.6 ? '#141414' : '#FFFFFF';
+  if(swatch){ swatch.style.background = cardBg; swatch.style.boxShadow = shadowCss(s); }
+  if(meta) meta.textContent = shadowMetaText(s);
 }
 
 /* ============== Components tab ============== */

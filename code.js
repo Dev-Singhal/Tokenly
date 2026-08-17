@@ -47,10 +47,17 @@ function mixHex(hex, target, factor) {
   const a = hexToRgb01(hex), b = hexToRgb01(target);
   return rgb01ToHex(a.r + (b.r - a.r) * factor, a.g + (b.g - a.g) * factor, a.b + (b.b - a.b) * factor);
 }
+function hexToRgba01(hex, alpha) {
+  const c = hexToRgb01(hex);
+  return { r: c.r, g: c.g, b: c.b, a: alpha === undefined ? 1 : alpha };
+}
 
-// ---------------- Color styles ----------------
+// ---------------- Color variables ----------------
 function publishColors() {
   if (!tokens) return;
+  const collection = getOrCreateCollection("Colors");
+  const modeId = collection.modes[0].modeId;
+  const existingVars = figma.variables.getLocalVariables("COLOR");
   const groups = [["Primary", tokens.color.primary], ["Grey", tokens.color.grey]];
   if (tokens.color.secondary) groups.push(["Secondary", tokens.color.secondary]);
   if (tokens.color.extras) {
@@ -59,10 +66,9 @@ function publishColors() {
   for (const [groupName, scale] of groups) {
     for (const [step, hex] of Object.entries(scale)) {
       const name = `${groupName}/${step}`;
-      const existing = figma.getLocalPaintStyles().find(s => s.name === name);
-      const style = existing || figma.createPaintStyle();
-      style.name = name;
-      style.paints = [{ type: "SOLID", color: hexToRgb01(hex) }];
+      const existing = existingVars.find(v => v.name === name && v.variableCollectionId === collection.id);
+      const v = existing || figma.variables.createVariable(name, collection, "COLOR");
+      v.setValueForMode(modeId, hexToRgba01(hex));
     }
   }
 }
@@ -127,19 +133,17 @@ function publishRadius() {
 // ---------------- Effect styles (shadow) ----------------
 function publishShadow() {
   if (!tokens || !tokens.shadow || !tokens.shadow.length) return;
-  tokens.shadow.forEach((shadowStr, i) => {
-    const m = shadowStr.match(/0 (\d+)px (\d+)px rgba\(([\d.]+),([\d.]+),([\d.]+),([\d.]+)\)/);
-    if (!m) return;
-    const [, y, blur, r, g, b, a] = m;
+  tokens.shadow.forEach((s, i) => {
     const name = `shadow-${i + 1}`;
-    const existing = figma.getLocalEffectStyles().find(s => s.name === name);
+    const existing = figma.getLocalEffectStyles().find(st => st.name === name);
     const style = existing || figma.createEffectStyle();
     style.name = name;
     style.effects = [{
       type: "DROP_SHADOW",
-      color: { r: parseInt(r) / 255, g: parseInt(g) / 255, b: parseInt(b) / 255, a: parseFloat(a) },
-      offset: { x: 0, y: parseInt(y) },
-      radius: parseInt(blur),
+      color: hexToRgba01(s.color, s.opacity),
+      offset: { x: s.x, y: s.y },
+      radius: s.blur,
+      spread: s.spread,
       visible: true,
       blendMode: "NORMAL",
     }];
@@ -194,8 +198,39 @@ async function getContainer() {
   return container;
 }
 function addFamilySection(container, set) {
-  set.layoutSizingHorizontal = "HUG";
   container.appendChild(set);
+  set.layoutSizingHorizontal = "HUG";
+}
+// combineAsVariants groups nodes into a set but does NOT arrange them — it keeps whatever x/y
+// they already had. Since every variant node is created without an explicit position, they'd
+// otherwise all land on top of each other. This lays them out in a real grid (rows × columns)
+// first, sized to each row's/column's largest member, the way Figma's own component sets look.
+function layoutGrid(matrix, gapX, gapY) {
+  gapX = gapX === undefined ? 40 : gapX;
+  gapY = gapY === undefined ? 40 : gapY;
+  const rows = matrix.length;
+  let cols = 0;
+  for (const row of matrix) cols = Math.max(cols, row.length);
+  const colWidths = new Array(cols).fill(0);
+  const rowHeights = new Array(rows).fill(0);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < matrix[r].length; c++) {
+      const n = matrix[r][c];
+      if (!n) continue;
+      colWidths[c] = Math.max(colWidths[c], n.width);
+      rowHeights[r] = Math.max(rowHeights[r], n.height);
+    }
+  }
+  let y = 0;
+  for (let r = 0; r < rows; r++) {
+    let x = 0;
+    for (let c = 0; c < matrix[r].length; c++) {
+      const n = matrix[r][c];
+      if (n) { n.x = x; n.y = y; }
+      x += colWidths[c] + gapX;
+    }
+    y += rowHeights[r] + gapY;
+  }
 }
 
 async function publishComponents() {
@@ -223,10 +258,11 @@ async function buildButtonSet(font) {
   const variants = tokens.components.button.variants.split(",").map(s => s.trim()).filter(Boolean);
   const states = ["Default", "Hover", "Focus", "Disabled"];
   const r = midRadius();
-  const nodes = [];
+  const matrix = [];
   for (const v of variants) {
     const base = variantColor(v);
     const outline = /outline|ghost/i.test(v);
+    const row = [];
     for (const state of states) {
       const comp = figma.createComponent();
       comp.name = `Variant=${v}, State=${state}`;
@@ -246,10 +282,12 @@ async function buildButtonSet(font) {
       comp.fills = bg ? [{ type: "SOLID", color: hexToRgb01(bg) }] : [];
       if (strokeColor) { comp.strokes = [{ type: "SOLID", color: hexToRgb01(strokeColor) }]; comp.strokeWeight = strokeWeight; }
       comp.appendChild(makeText(v, font, 13, textColor));
-      nodes.push(comp);
+      row.push(comp);
     }
+    matrix.push(row);
   }
-  const set = figma.combineAsVariants(nodes, figma.currentPage);
+  layoutGrid(matrix);
+  const set = figma.combineAsVariants(matrix.flat(), figma.currentPage);
   set.name = "Button";
   return set;
 }
@@ -274,6 +312,7 @@ async function buildInputSet(font) {
     comp.appendChild(label);
     nodes.push(comp);
   }
+  layoutGrid([nodes]);
   const set = figma.combineAsVariants(nodes, figma.currentPage);
   set.name = "Input";
   return set;
@@ -299,6 +338,7 @@ function buildToggleSet() {
     comp.appendChild(thumb);
     nodes.push(comp);
   }
+  layoutGrid([nodes]);
   const set = figma.combineAsVariants(nodes, figma.currentPage);
   set.name = "Toggle";
   return set;
@@ -325,6 +365,7 @@ function buildCheckboxSet(font) {
     }
     nodes.push(comp);
   }
+  layoutGrid([nodes]);
   const set = figma.combineAsVariants(nodes, figma.currentPage);
   set.name = "Checkbox";
   return set;
@@ -352,6 +393,7 @@ function buildRadioSet() {
     }
     nodes.push(comp);
   }
+  layoutGrid([nodes]);
   const set = figma.combineAsVariants(nodes, figma.currentPage);
   set.name = "Radio";
   return set;
@@ -375,6 +417,7 @@ function buildTabsSet(font) {
     comp.appendChild(makeText("Tab", font, 13, state === "Active" ? "#18161F" : tokens.color.grey["600"]));
     nodes.push(comp);
   }
+  layoutGrid([nodes]);
   const set = figma.combineAsVariants(nodes, figma.currentPage);
   set.name = "Tabs";
   return set;
@@ -398,6 +441,7 @@ function buildBadgeSet(font) {
     comp.appendChild(makeText(v, font, 12, mixHex(base, "#000000", 0.1)));
     nodes.push(comp);
   }
+  layoutGrid([nodes]);
   const set = figma.combineAsVariants(nodes, figma.currentPage);
   set.name = "Badge";
   return set;

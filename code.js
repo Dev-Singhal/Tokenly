@@ -9,19 +9,19 @@ figma.ui.onmessage = async (msg) => {
       tokens = msg.tokens;
     }
     if (msg.type === "publish-colors") {
-      publishColors();
+      await publishColors();
       figma.ui.postMessage({ type: "publish-done", tab: "colors" });
     } else if (msg.type === "publish-typography") {
       await publishTypography();
       figma.ui.postMessage({ type: "publish-done", tab: "typography" });
     } else if (msg.type === "publish-spacing") {
-      publishSpacing();
+      await publishSpacing();
       figma.ui.postMessage({ type: "publish-done", tab: "spacing" });
     } else if (msg.type === "publish-radius") {
-      publishRadius();
+      await publishRadius();
       figma.ui.postMessage({ type: "publish-done", tab: "radius" });
     } else if (msg.type === "publish-shadow") {
-      publishShadow();
+      await publishShadow();
       figma.ui.postMessage({ type: "publish-done", tab: "shadow" });
     } else if (msg.type === "publish-components") {
       await publishComponents();
@@ -53,11 +53,11 @@ function hexToRgba01(hex, alpha) {
 }
 
 // ---------------- Color variables ----------------
-function publishColors() {
+async function publishColors() {
   if (!tokens) return;
-  const collection = getOrCreateCollection("Colors");
+  const collection = await getOrCreateCollection("Colors");
   const modeId = collection.modes[0].modeId;
-  const existingVars = figma.variables.getLocalVariables("COLOR");
+  const existingVars = await figma.variables.getLocalVariablesAsync("COLOR");
   const groups = [["Primary", tokens.color.primary], ["Grey", tokens.color.grey]];
   if (tokens.color.secondary) groups.push(["Secondary", tokens.color.secondary]);
   if (tokens.color.extras) {
@@ -85,12 +85,13 @@ async function loadFontSafe(family, style) {
 }
 async function publishTypography() {
   if (!tokens) return;
+  const existingStyles = await figma.getLocalTextStylesAsync();
   for (const [role, t] of Object.entries(tokens.typography.scale)) {
     const family = t.font || tokens.typography.font;
     const styleName = t.weight >= 700 ? "Bold" : t.weight <= 300 ? "Light" : "Regular";
     const font = await loadFontSafe(family, styleName);
     const name = `Text/${role}`;
-    const existing = figma.getLocalTextStyles().find(s => s.name === name);
+    const existing = existingStyles.find(s => s.name === name);
     const style = existing || figma.createTextStyle();
     style.name = name;
     style.fontName = font;
@@ -101,15 +102,16 @@ async function publishTypography() {
 }
 
 // ---------------- Variables (spacing / radius) ----------------
-function getOrCreateCollection(name) {
-  const existing = figma.variables.getLocalVariableCollections().find(c => c.name === name);
+async function getOrCreateCollection(name) {
+  const collections = await figma.variables.getLocalVariableCollectionsAsync();
+  const existing = collections.find(c => c.name === name);
   return existing || figma.variables.createVariableCollection(name);
 }
-function publishSpacing() {
+async function publishSpacing() {
   if (!tokens) return;
-  const collection = getOrCreateCollection("Spacing");
+  const collection = await getOrCreateCollection("Spacing");
   const modeId = collection.modes[0].modeId;
-  const existingVars = figma.variables.getLocalVariables("FLOAT");
+  const existingVars = await figma.variables.getLocalVariablesAsync("FLOAT");
   tokens.spacing.forEach((val, i) => {
     const name = `sp-${i + 1}`;
     const existing = existingVars.find(v => v.name === name && v.variableCollectionId === collection.id);
@@ -117,11 +119,11 @@ function publishSpacing() {
     v.setValueForMode(modeId, val);
   });
 }
-function publishRadius() {
+async function publishRadius() {
   if (!tokens) return;
-  const collection = getOrCreateCollection("Radius");
+  const collection = await getOrCreateCollection("Radius");
   const modeId = collection.modes[0].modeId;
-  const existingVars = figma.variables.getLocalVariables("FLOAT");
+  const existingVars = await figma.variables.getLocalVariablesAsync("FLOAT");
   tokens.radius.forEach((val, i) => {
     const name = `r-${i + 1}`;
     const existing = existingVars.find(v => v.name === name && v.variableCollectionId === collection.id);
@@ -131,11 +133,12 @@ function publishRadius() {
 }
 
 // ---------------- Effect styles (shadow) ----------------
-function publishShadow() {
+async function publishShadow() {
   if (!tokens || !tokens.shadow || !tokens.shadow.length) return;
+  const existingStyles = await figma.getLocalEffectStylesAsync();
   tokens.shadow.forEach((s, i) => {
     const name = `shadow-${i + 1}`;
-    const existing = figma.getLocalEffectStyles().find(st => st.name === name);
+    const existing = existingStyles.find(st => st.name === name);
     const style = existing || figma.createEffectStyle();
     style.name = name;
     style.effects = [{

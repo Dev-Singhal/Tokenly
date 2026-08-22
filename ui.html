@@ -115,8 +115,28 @@ function autoGrey(primaryHex){
   return rgbToHex(grey*(1-blend)+r*blend, grey*(1-blend)+g*blend, grey*(1-blend)+b*blend);
 }
 const RATIOS = { 'minor-second':1.067,'major-second':1.125,'minor-third':1.2,'major-third':1.25,'perfect-fourth':1.333,'golden':1.618 };
-const ROLES = ['caption','body','body-lg','h3','h2','h1','display'];
-const ROLE_INDEX = { caption:-1, body:0, 'body-lg':1, h3:2, h2:3, h1:4, display:5 };
+// Named steps above/below the base ("body") size, in order outward from the base.
+// When scalesUp/scalesDown ask for more steps than there are names here, extra steps
+// fall back to a generic "display-N" / "caption-N" label.
+const UP_NAMES = ['body-lg','h3','h2','h1','display'];
+const DOWN_NAMES = ['caption'];
+// Returns roles ordered largest-to-smallest (display first, caption last) — the order
+// the scale preview renders in.
+function getTypeRoles(){
+  const up = Math.max(0, state.typography.scalesUp||0);
+  const down = Math.max(0, state.typography.scalesDown||0);
+  const roles = [];
+  for(let i=up; i>=1; i--){
+    const name = UP_NAMES[i-1] || `display-${i-UP_NAMES.length+1}`;
+    roles.push({ key:name, index:i });
+  }
+  roles.push({ key:'body', index:0 });
+  for(let i=1; i<=down; i++){
+    const name = DOWN_NAMES[i-1] || `caption-${i-DOWN_NAMES.length+1}`;
+    roles.push({ key:name, index:-i });
+  }
+  return roles;
+}
 const RADIUS_PREVIEW_SIZE = 44;
 const STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 784.11 815.53"><path class="fil0" d="M392.05 0c-20.9,210.08 -184.06,378.41 -392.05,407.78 207.96,29.37 371.12,197.68 392.05,407.74 20.93,-210.06 184.09,-378.37 392.05,-407.74 -207.98,-29.38 -371.16,-197.69 -392.06,-407.78z"></path></svg>`;
 function sparkleButton(label, onclickJS){
@@ -134,7 +154,7 @@ function sparkleButton(label, onclickJS){
 /* ============== state ============== */
 let state = {
   color: { primary:'#E52C65', useSecondary:true, secondary:'#7524B7', useCustomGrey:false, grey500:'#7D7796', extras:[] },
-  typography: { font:'Satoshi', scaleType:'major-third', customRatio:1.25, bodySize:16, overrides:{}, customRoles:[] },
+  typography: { font:'Satoshi', scaleType:'major-third', customRatio:1.25, bodySize:16, scalesUp:5, scalesDown:1, roundValues:true, overrides:{}, customRoles:[] },
   spacing: { base:8, customBase:8, scaleType:'linear', ratio:1.5, steps:8, customValues:[] },
   radius: { min:4, max:24, steps:4, scaleType:'linear', customValues:[] },
   shadow: { enabled:true, steps:3, intensity:0.12, tint:'neutral', overrides:{}, customShadows:[] },
@@ -160,14 +180,15 @@ function computeTokens(){
 
   const ratio = state.typography.scaleType==='custom' ? state.typography.customRatio : RATIOS[state.typography.scaleType];
   const typeScale = {};
-  ROLES.forEach(role=>{
-    const size = Math.round(state.typography.bodySize * Math.pow(ratio, ROLE_INDEX[role]));
+  getTypeRoles().forEach(({key:role, index})=>{
+    const rawSize = state.typography.bodySize * Math.pow(ratio, index);
+    const size = state.typography.roundValues ? Math.round(rawSize) : Math.round(rawSize*100)/100;
     const ov = state.typography.overrides[role] || {};
     typeScale[role] = {
       size: ov.size !== undefined ? ov.size : size,
-      weight: ov.weight !== undefined ? ov.weight : (ROLE_INDEX[role]>=3?700:ROLE_INDEX[role]>=5?900:400),
-      letterSpacing: ov.letterSpacing !== undefined ? ov.letterSpacing : (ROLE_INDEX[role]>=2?-0.02:0),
-      lineHeight: ov.lineHeight !== undefined ? ov.lineHeight : (ROLE_INDEX[role]>=2?1.15:1.5),
+      weight: ov.weight !== undefined ? ov.weight : (index>=3?700:index>=5?900:400),
+      letterSpacing: ov.letterSpacing !== undefined ? ov.letterSpacing : (index>=2?-0.02:0),
+      lineHeight: ov.lineHeight !== undefined ? ov.lineHeight : (index>=2?1.15:1.5),
       font: ov.font || state.typography.font,
     };
   });
@@ -394,7 +415,7 @@ function typeRowHTML(key, displayName, s, isCustom, customId){
 }
 function typographyControlsHTML(){
   const t = computeTokens();
-  const builtInRows = ROLES.slice().reverse().map(role => typeRowHTML(role, role, t.typography.scale[role], false)).join('');
+  const builtInRows = getTypeRoles().map(({key:role}) => typeRowHTML(role, role, t.typography.scale[role], false)).join('');
   const customRows = state.typography.customRoles.map(c => typeRowHTML('c'+c.id, c.name, t.typography.scale[c.name], true, c.id)).join('');
   return `
     <label class="field"><span class="field-label">Typeface</span><input type="text" value="${state.typography.font}" oninput="state.typography.font=this.value; updateTypographyPreview()"></label>
@@ -407,6 +428,14 @@ function typographyControlsHTML(){
       <div><label class="field"><span class="field-label">Body size (px)</span><input type="number" value="${state.typography.bodySize}" oninput="state.typography.bodySize=parseInt(this.value)||16; updateTypographyPreview()"></label></div>
     </div>
     ${state.typography.scaleType==='custom' ? `<label class="field"><span class="field-label">Custom ratio</span><input type="number" step="0.01" value="${state.typography.customRatio}" oninput="state.typography.customRatio=parseFloat(this.value); updateTypographyPreview()"></label>` : ''}
+    <div class="row">
+      <div><label class="field"><span class="field-label">Scales above base</span><input type="number" min="0" value="${state.typography.scalesUp}" oninput="clearSizeOverrides(); state.typography.scalesUp=Math.max(0,parseInt(this.value)||0); renderCurrentTab()"></label></div>
+      <div><label class="field"><span class="field-label">Scales below base</span><input type="number" min="0" value="${state.typography.scalesDown}" oninput="clearSizeOverrides(); state.typography.scalesDown=Math.max(0,parseInt(this.value)||0); renderCurrentTab()"></label></div>
+    </div>
+    <label class="field" style="display:flex; align-items:center; gap:6px; flex-direction:row;">
+      <input type="checkbox" ${state.typography.roundValues?'checked':''} onchange="state.typography.roundValues=this.checked; renderCurrentTab()" style="width:auto;">
+      <span class="field-label" style="margin:0;">Round values to whole pixels</span>
+    </label>
     <div class="section-label">Scale preview — click a row to override</div>
     ${builtInRows}
     ${customRows}
@@ -457,7 +486,7 @@ function setCustomRoleField(id, key, value){
 }
 function updateTypographyPreview(){
   const t = computeTokens();
-  ROLES.forEach(role=>{
+  getTypeRoles().forEach(({key:role})=>{
     const s = t.typography.scale[role];
     const sampleEl = document.getElementById('sample-'+role);
     const metaEl = document.getElementById('meta-'+role);
